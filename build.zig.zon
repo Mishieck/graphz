@@ -1,0 +1,14 @@
+.{
+    .name = .graphz,
+    .version = "0.1.0",
+    .fingerprint = 0xedbeac55a3c991a3,
+    .minimum_zig_version = "0.15.1",
+    .dependencies = .{},
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "README.md",
+        "LICENSE",
+    },
+}
