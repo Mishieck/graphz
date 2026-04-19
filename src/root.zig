@@ -7,8 +7,8 @@ pub fn Graph(comptime Data: type) type {
     return struct {
         const Self = @This();
 
-        nodes: *ArrayList(Data),
-        edges: *ArrayList(Edge),
+        nodes: ArrayList(Data),
+        edges: ArrayList(Edge),
     };
 }
 
