@@ -17,6 +17,6 @@ pub fn Node(comptime Data: type) type {
         const Self = @This();
 
         data: Data,
-        neighbors: *ArrayList(*Self),
+        neighbors: ArrayList(*Self),
     };
 }
