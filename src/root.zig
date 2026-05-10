@@ -100,8 +100,9 @@ test TreeNode {
 
 pub const Traversal = struct {
     pub const Method = enum(u8) {
-        breadth_first,
-        depth_first,
+        level_order,
+        post_order,
+        pre_order,
         _,
     };
 
@@ -120,11 +121,12 @@ pub const Traversal = struct {
         try nodes.append(node);
 
         return switch (traversal) {
-            .breadth_first => Iterator(traversal, N, getNeighbors){ .nodes = nodes },
-            .depth_first => Iterator(traversal, N, getNeighbors){
+            .level_order => Iterator(traversal, N, getNeighbors){ .nodes = nodes },
+            .post_order => Iterator(traversal, N, getNeighbors){
                 .nodes = nodes,
                 .processed = .init(arena),
             },
+            .pre_order => Iterator(traversal, N, getNeighbors){ .nodes = nodes },
             _ => unreachable,
         };
     }
@@ -134,7 +136,10 @@ pub const Traversal = struct {
         N: type,
         comptime getNeighbors: *const NeighborGetter(N),
     ) type {
-        const BreadthFirstTraversal = struct {
+        // Iterator for level-order traversal.
+        //
+        // > [!WARNING] If the graph contains cycles, look out for duplicates!
+        const LevelOrderTraversal = struct {
             const It = @This();
 
             nodes: ArrayList(*const N),
@@ -147,7 +152,10 @@ pub const Traversal = struct {
             }
         };
 
-        const DepthFirstTraversal = struct {
+        // Iterator for post-order traversal.
+        //
+        // > [!WARNING] If the graph contains cycles, look out for duplicates!
+        const PostOrderTraversal = struct {
             const It = @This();
 
             nodes: ArrayList(*const N),
@@ -164,15 +172,43 @@ pub const Traversal = struct {
             }
         };
 
+        // Iterator for pre-order traversal.
+        //
+        // > [!WARNING] If the graph contains cycles, look out for duplicates!
+        const PreOrderTraversal = struct {
+            const It = @This();
+
+            nodes: ArrayList(*const N),
+
+            pub fn next(self: *It) !?*const N {
+                if (self.nodes.items.len == 0) return null;
+                const head = self.nodes.pop().?;
+                var it = mem.reverseIterator(getNeighbors(head).items);
+                while (it.next()) |n| try self.nodes.append(n);
+                return head;
+            }
+        };
+
         return switch (traversal) {
-            .breadth_first => BreadthFirstTraversal,
-            .depth_first => DepthFirstTraversal,
+            .level_order => LevelOrderTraversal,
+            .post_order => PostOrderTraversal,
+            .pre_order => PreOrderTraversal,
             _ => unreachable,
         };
     }
 };
 
 test "Traversal" {
+    const expectations = [_]struct { Traversal.Method, []const u8 }{
+        .{ .level_order, &.{ 0, 1, 2, 3 } },
+        .{ .post_order, &.{ 3, 1, 2, 0 } },
+        .{ .pre_order, &.{ 0, 1, 3, 2 } },
+    };
+
+    inline for (expectations) |expectation| try testTraverse(expectation.@"0", expectation.@"1");
+}
+
+fn testTraverse(comptime method: Traversal.Method, expectations: []const u8) !void {
     const N = Node(u8);
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();
@@ -186,17 +222,10 @@ test "Traversal" {
     var left_of_left = N{ .data = 3, .neighbors = .init(allocator) };
     try left.neighbors.append(&left_of_left);
 
-    var bf = try node.traverse(allocator, .breadth_first);
-    for ([_]u8{ 0, 1, 2, 3 }) |i| {
-        const item = try bf.next();
-        try testing.expect(item != null);
-        try testing.expectEqual(i, item.?.data);
-    }
-
-    var df = try node.traverse(allocator, .depth_first);
-    for ([_]u8{ 3, 1, 2, 0 }) |i| {
-        const item = try df.next();
-        try testing.expect(item != null);
-        try testing.expectEqual(i, item.?.data);
+    var it = try node.traverse(allocator, method);
+    for (expectations) |expected| {
+        const actual = try it.next();
+        try testing.expect(actual != null);
+        try testing.expectEqual(expected, actual.?.data);
     }
 }
