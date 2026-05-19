@@ -112,10 +112,10 @@ pub fn Node(comptime Data: type) type {
 
         pub const default_skipper = Traversal.Skipper(Data, void){
             .record = {},
-            .skip = dont_skip,
+            .skip = dontSkip,
         };
 
-        pub fn dont_skip(
+        pub fn dontSkip(
             self: Traversal.Skipper(Data, void),
             node: *const Self,
             index: usize,
@@ -127,7 +127,57 @@ pub fn Node(comptime Data: type) type {
             _ = neighbors;
             return false;
         }
+
+        pub fn fromGraph(arena: mem.Allocator, graph: Graph(Data)) !Self {
+            const vector = try graph.toVector(arena);
+            return vector.items[0].*;
+        }
+
+        pub fn toGraph(self: *Self, arena: mem.Allocator, comptime skipper: anytype) !Graph(Data) {
+            var vector = Vector(Data).init(arena);
+            defer vector.deinit();
+            var it = try self.traverse(arena, .level_order, skipper);
+            while (try it.next()) |node| try vector.append(@constCast(node));
+            return Graph(Data).fromVector(arena, vector);
+        }
     };
+}
+
+test Node {
+    const G = Graph(u8);
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    var nodes = G.Nodes.init(testing.allocator);
+    defer nodes.deinit();
+    try nodes.appendSlice(&.{ 0, 1, 2, 3, 4, 5, 6 });
+
+    var edges = G.Edges.init(testing.allocator);
+    defer edges.deinit();
+    try edges.appendSlice(&.{
+        .{ 0, 1 },
+        .{ 0, 2 },
+        .{ 1, 3 },
+        .{ 1, 4 },
+        .{ 2, 5 },
+        .{ 2, 6 },
+    });
+
+    var graph = G{ .nodes = nodes, .edges = edges };
+
+    const N = Node(u8);
+    var node = try N.fromGraph(arena.allocator(), graph);
+    graph = try node.toGraph(arena.allocator(), N.default_skipper);
+
+    try testing.expectEqual(nodes.items.len, graph.nodes.items.len);
+    try testing.expectEqualSlices(u8, nodes.items, graph.nodes.items);
+
+    try testing.expectEqual(edges.items.len, graph.edges.items.len);
+    for (edges.items, 0..) |edge, i| try testing.expectEqualSlices(
+        usize,
+        &edge,
+        &graph.edges.items[i],
+    );
 }
 
 pub fn TreeNode(comptime Data: type) type {
