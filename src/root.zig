@@ -13,7 +13,84 @@ pub fn Graph(comptime Data: type) type {
 
         nodes: Nodes,
         edges: Edges,
+
+        pub fn fromVector(gpa: mem.Allocator, vector: Vector(Data)) !Self {
+            var nodes = Nodes.init(gpa);
+            var edges = Edges.init(gpa);
+
+            for (vector.items, 0..) |node, i| {
+                try nodes.append(node.data);
+
+                for (node.neighbors.items) |neighbor| try edges.append(
+                    .{ i, mem.indexOf(*Node(Data), vector.items, &.{neighbor}).? },
+                );
+            }
+
+            return .{ .nodes = nodes, .edges = edges };
+        }
+
+        pub fn toVector(self: *const Self, arena: mem.Allocator) !Vector(Data) {
+            var vector = Vector(Data).init(arena);
+
+            for (self.nodes.items) |data| {
+                const node = try arena.create(Node(Data));
+                node.* = .{ .data = data, .neighbors = .init(arena) };
+                try vector.append(node);
+            }
+
+            for (self.edges.items) |edge| {
+                const i, const j = edge;
+                const from = vector.items[i];
+                const to = vector.items[j];
+                try from.neighbors.append(to);
+            }
+
+            return vector;
+        }
     };
+}
+
+test Graph {
+    const G = Graph(u8);
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    var nodes = G.Nodes.init(testing.allocator);
+    defer nodes.deinit();
+    try nodes.appendSlice(&.{ 0, 1, 2, 3, 4, 5, 6 });
+
+    var edges = G.Edges.init(testing.allocator);
+    defer edges.deinit();
+    try edges.appendSlice(&.{
+        .{ 0, 1 },
+        .{ 0, 2 },
+        .{ 1, 3 },
+        .{ 1, 4 },
+        .{ 2, 5 },
+        .{ 2, 6 },
+    });
+
+    var graph = G{ .nodes = nodes, .edges = edges };
+    const vector = try graph.toVector(arena.allocator());
+    defer vector.deinit();
+
+    graph = try G.fromVector(testing.allocator, vector);
+    defer graph.nodes.deinit();
+    defer graph.edges.deinit();
+
+    try testing.expectEqual(nodes.items.len, graph.nodes.items.len);
+    try testing.expectEqualSlices(u8, nodes.items, graph.nodes.items);
+
+    try testing.expectEqual(edges.items.len, graph.edges.items.len);
+    for (edges.items, 0..) |edge, i| try testing.expectEqualSlices(
+        usize,
+        &edge,
+        &graph.edges.items[i],
+    );
+}
+
+pub fn Vector(Data: type) type {
+    return ArrayList(*Node(Data));
 }
 
 pub fn Node(comptime Data: type) type {
