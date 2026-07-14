@@ -75,3 +75,10 @@ const graphz = b.dependency("graphz", .{
 
 exe.root_module.addImport("graphz", graphz.module("graphz"));
 ```
+
+## Examples
+
+- [Node](./examples/node.zig)
+- [TreeNode](./examples/tree_node.zig)
+- [Traversal](./examples/traversal.zig)
+- [Graph-node Conversions](./examples/graph_node_conversions.zig)
