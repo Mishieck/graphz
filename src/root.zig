@@ -238,11 +238,11 @@ pub fn TreeNode(comptime Data: type) type {
 
         interface: Interface,
 
-        pub fn init(arena: mem.Allocator, data: Data, parent_node: ?*Self) !Self {
+        pub fn init(arena: mem.Allocator, node_data: Data, parent_node: ?*Self) !Self {
             const neighbors = Interface.List.init(arena);
             var node = Self{
                 .interface = .{
-                    .data = data,
+                    .data = node_data,
                     .neighbors = neighbors,
                     .traverse = traverse,
                     .fromData = fromData,
@@ -256,6 +256,10 @@ pub fn TreeNode(comptime Data: type) type {
             });
 
             return node;
+        }
+
+        pub fn data(self: *const Self) Data {
+            return self.interface.data;
         }
 
         pub fn traverse(
@@ -291,9 +295,9 @@ pub fn TreeNode(comptime Data: type) type {
             }
         };
 
-        pub fn fromData(arena: mem.Allocator, data: Data) !*Interface {
+        pub fn fromData(arena: mem.Allocator, node_data: Data) !*Interface {
             const self = try arena.create(Self);
-            self.* = try .init(arena, data, null);
+            self.* = try .init(arena, node_data, null);
             return &self.interface;
         }
 
