@@ -320,7 +320,7 @@ pub fn TreeNode(comptime Data: type) type {
         }
 
         /// Caller owns the memory.
-        pub fn children(self: *const Self, gpa: mem.Allocator) Children {
+        pub fn children(self: *const Self, gpa: mem.Allocator) !Children {
             var c = Children.init(gpa);
             for (self.interface.neighbors.items[1..]) |i| try c.append(.fromInterface(i));
             return c;
