@@ -104,6 +104,10 @@ pub fn Node(comptime Data: type) type {
             return .{ .interface = interface };
         }
 
+        pub inline fn default(arena: mem.Allocator, d: Data) Self {
+            return .init(@constCast(&Default.init(d, .init(arena)).interface));
+        }
+
         pub fn data(self: *const Self) Data {
             return self.interface.data;
         }
