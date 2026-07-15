@@ -112,8 +112,7 @@ pub fn Node(comptime Data: type) type {
             return self.interface.data;
         }
 
-        /// Caller owns the memory. Free using `ArrayList.deinit` for the list
-        /// and `Allocator.destroy` for each item.
+        /// Gets a list of neighbors. Caller owns the memory. Free using `deinitNeighbors`.
         pub fn neighbors(self: *const Self, gpa: mem.Allocator) !Neighbors {
             var ns = Neighbors.init(gpa);
             for (self.interface.neighbors.items) |neighbor| {
@@ -122,6 +121,12 @@ pub fn Node(comptime Data: type) type {
                 try ns.append(n);
             }
             return ns;
+        }
+
+        /// Frees memory allocated to `Neighbors`;
+        pub fn deinitNeighbors(gpa: mem.Allocator, ns: *Neighbors) void {
+            for (ns.items) |n| gpa.destroy(n);
+            ns.deinit();
         }
 
         pub fn traverse(self: *Self, arena: mem.Allocator, traversal: T.Method) !T.Iterator {

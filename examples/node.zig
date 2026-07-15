@@ -22,9 +22,6 @@ pub fn main() !void {
 
     try testing.expectEqual(2, node.interface.neighbors.items.len);
     var neighbors = try node.neighbors(allocator);
-    defer {
-        for (neighbors.items) |n| allocator.destroy(n);
-        neighbors.deinit();
-    }
+    defer Node.deinitNeighbors(allocator, &neighbors);
     try testing.expectEqual(2, neighbors.items.len);
 }
