@@ -27,11 +27,9 @@ pub fn main() !void {
     try testing.expectEqual(&left.interface, &TreeNode.previousSibling(&center).?.interface);
     try testing.expectEqual(&right.interface, &TreeNode.nextSibling(&center).?.interface);
 
-    var children = try node.children(allocator);
-    defer children.deinit();
+    var children = node.children();
     for ([_]u8{ 1, 2 }, 0..) |expected, i| {
-        const actual = children.items[i];
-        try testing.expectEqual(expected, actual.interface.data);
+        const actual = children.get(i);
         try testing.expectEqual(expected, actual.data());
     }
 }

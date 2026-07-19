@@ -12,7 +12,7 @@ pub fn Node(comptime Data: type) type {
         const Self = @This();
         const Interface = graph.Node(Data).Interface;
         const T = Traversal(Data);
-        const Children = ArrayList(*Self);
+        const Children = NodeChildren(Data);
 
         interface: Interface,
 
@@ -98,10 +98,8 @@ pub fn Node(comptime Data: type) type {
         }
 
         /// Caller owns the memory.
-        pub fn children(self: *const Self, gpa: mem.Allocator) !Children {
-            var c = Children.init(gpa);
-            for (self.interface.neighbors.items[1..]) |i| try c.append(.fromInterface(i));
-            return c;
+        pub fn children(self: *const Self) Children {
+            return Children.init(@constCast(&self.interface.neighbors));
         }
 
         pub fn getSibling(self: *const Self, offset: isize) ?*Self {
@@ -127,23 +125,56 @@ test Node {
     defer arena.deinit();
     const allocator = arena.allocator();
 
-    var node = try N.init(allocator, 0, null);
-    var left = try N.init(allocator, 1, &node);
-    try node.interface.neighbors.append(&left.interface);
-    var center = try N.init(allocator, 2, &node);
-    try node.interface.neighbors.append(&center.interface);
-    var right = try N.init(allocator, 3, &node);
-    try node.interface.neighbors.append(&right.interface);
-    var left_of_left = try N.init(allocator, 4, &node);
+    var root = try N.init(allocator, 0, null);
+    var left = try N.init(allocator, 1, &root);
+    try root.interface.neighbors.append(&left.interface);
+    var center = try N.init(allocator, 2, &root);
+    try root.interface.neighbors.append(&center.interface);
+    var right = try N.init(allocator, 3, &root);
+    try root.interface.neighbors.append(&right.interface);
+    var left_of_left = try N.init(allocator, 4, &root);
     try left.interface.neighbors.append(&left_of_left.interface);
 
     try testing.expectEqual(&left.interface, &N.previousSibling(&center).?.interface);
     try testing.expectEqual(&right.interface, &N.nextSibling(&center).?.interface);
 
-    var it = try N.traverse(&node.interface, allocator, .level_order);
+    var it = try N.traverse(&root.interface, allocator, .level_order);
     for ([_]u8{ 0, 1, 2, 3 }) |expected| {
         const actual = try it.next();
         try testing.expect(actual != null);
         try testing.expectEqual(expected, actual.?.data);
     }
+
+    const children = root.children();
+    try testing.expectEqual(3, children.len());
+    for ([_]N{ left, center, right }, 0..) |n, i| try testing.expectEqual(
+        n.data(),
+        children.get(i).data(),
+    );
+}
+
+pub fn NodeChildren(Data: type) type {
+    return struct {
+        const Self = @This();
+        const TreeNode = Node(Data);
+        const Nodes = *graph.Vector(Data);
+
+        nodes: Nodes,
+
+        pub fn init(nodes: Nodes) Self {
+            return .{ .nodes = nodes };
+        }
+
+        pub fn len(self: *const Self) usize {
+            return self.nodes.items.len - 1;
+        }
+
+        pub fn get(self: *const Self, index: usize) *TreeNode {
+            return @fieldParentPtr("interface", self.nodes.items[index + 1]);
+        }
+
+        pub fn set(self: *const Self, index: usize, value: *TreeNode) *TreeNode {
+            self.nodes.insert(index + 1, &value.interface);
+        }
+    };
 }
