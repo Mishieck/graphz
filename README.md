@@ -9,23 +9,29 @@ A Zig library for graphs.
 The data structures available include:
 
 <dl>
-  <dt><a href="./src/root.zig">Graph</a></dt>
+  <dt><a href="./src/graph.zig">Graph</a></dt>
   <dd>
     A graph containing a list of nodes and list of edges. Each edge is a
     pair of indices. Each edge index is the index of its nodes in the nodes
     array.
   </dd>
-  <dt><a href="./src/root.zig">Node</a></dt>
+  <dt><a href="./src/graph.zig">Node</a></dt>
   <dd>
     A node in a graph. It has a data property and neighbors property. The data
     property has the data associated with a node. The neighbors are the nodes it
     is connected to.
   </dd>
-  <dt><a href="./src/root.zig">TreeNode</a></dt>
+  <dt><a href="./src/tree.zig">TreeNode</a></dt>
   <dd>
     A node in a tree. It has a parent method, which returns a node or
     <code>null</code>. It also has a <code>children</code> method which returns
     the children of the node.
+  </dd>
+  <dt><a href="./src/traversal.zig">Traversal</a></dt>
+  <dd>
+    A traverser of graphs. It creates an iterable of nodes. The rules of
+    traversal are determined by the nature of the graph and the
+    <a href="#traversal">method</a>.
   </dd>
   <!--<dt><a href="./src/root.zig">ChainNode</a></dt>
   <dd>
