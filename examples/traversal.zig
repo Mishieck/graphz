@@ -4,7 +4,7 @@ const mem = std.mem;
 const heap = std.heap;
 const debug = std.debug;
 const graphz = @import("graphz");
-const Node = graphz.Node(u8);
+const Node = graphz.graph.Node(u8);
 const Traversal = graphz.Traversal(u8);
 
 pub fn main() !void {

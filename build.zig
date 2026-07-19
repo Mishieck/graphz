@@ -27,7 +27,7 @@ fn addExample(
     mod: *std.Build.Module,
 ) void {
     const examples_node = b.addExecutable(.{
-        .name = "examples_" ++ name,
+        .name = "example_" ++ name,
         .root_module = b.createModule(.{
             .root_source_file = b.path("examples/" ++ name ++ ".zig"),
             .target = target,
@@ -40,7 +40,7 @@ fn addExample(
 
     b.installArtifact(examples_node);
 
-    const run_step = b.step("examples_" ++ name, "Run the " ++ name ++ " example.");
+    const run_step = b.step("example_" ++ name, "Run the " ++ name ++ " example.");
 
     const run_cmd = b.addRunArtifact(examples_node);
     run_step.dependOn(&run_cmd.step);

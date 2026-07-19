@@ -5,7 +5,7 @@ const debug = std.debug;
 const graphz = @import("graphz");
 
 pub fn main() !void {
-    const G = graphz.Graph(u8);
+    const G = graphz.graph.Graph(u8);
     var gpa = heap.GeneralPurposeAllocator(.{}){};
     defer debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
@@ -30,7 +30,7 @@ pub fn main() !void {
 
     var graph = G{ .nodes = nodes, .edges = edges };
 
-    const N = graphz.Node(u8);
+    const N = graphz.graph.Node(u8);
     var node = try N.fromGraph(arena.allocator(), graph);
     try testing.expectEqual(0, node.interface.data);
     try testing.expectEqual(0, node.data());

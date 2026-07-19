@@ -3,7 +3,7 @@ const testing = std.testing;
 const heap = std.heap;
 const debug = std.debug;
 const graphz = @import("graphz");
-const Node = graphz.Node(u8);
+const Node = graphz.graph.Node(u8);
 
 pub fn main() !void {
     var gpa = heap.GeneralPurposeAllocator(.{}){};
