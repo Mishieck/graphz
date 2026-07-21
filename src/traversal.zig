@@ -5,6 +5,7 @@ const testing = std.testing;
 const ArrayList = std.array_list.Managed;
 
 const graph = @import("graph.zig");
+const iteratorz = @import("iteratorz");
 
 pub fn Traversal(Data: type) type {
     const N = graph.Node(Data);

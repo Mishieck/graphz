@@ -14,22 +14,33 @@ pub fn main() !void {
     defer arena.deinit();
     const aa = arena.allocator();
 
-    var node = try TreeNode.init(aa, 0, null);
-    var left = try TreeNode.init(aa, 1, &node);
-    try node.interface.neighbors.append(&left.interface);
-    var center = try TreeNode.init(aa, 2, &node);
-    try node.interface.neighbors.append(&center.interface);
-    var right = try TreeNode.init(aa, 3, &node);
-    try node.interface.neighbors.append(&right.interface);
-    var left_of_left = try TreeNode.init(aa, 4, &node);
-    try left.interface.neighbors.append(&left_of_left.interface);
+    var root = try TreeNode.init(aa, 0, null);
+    var left = try TreeNode.init(aa, 1, &root);
+    var center = try TreeNode.init(aa, 2, &root);
+    var right = try TreeNode.init(aa, 3, &root);
 
-    try testing.expectEqual(&left.interface, &TreeNode.previousSibling(&center).?.interface);
-    try testing.expectEqual(&right.interface, &TreeNode.nextSibling(&center).?.interface);
+    var root_children = root.children();
+    _ = try root_children.append(&left);
+    _ = try root_children.append(&center);
+    _ = try root_children.append(&right);
 
-    var children = node.children();
-    for ([_]u8{ 1, 2 }, 0..) |expected, i| {
-        const actual = children.get(i);
-        try testing.expectEqual(expected, actual.data());
+    for (0..3) |i| {
+        const actual = root_children.get(i);
+        try testing.expectEqual(i + 1, actual.data());
     }
+
+    var center_siblings = center.siblings();
+    try testing.expectEqual(&left, center_siblings.previous());
+    try testing.expectEqual(&right, center_siblings.next());
+
+    var center_parent = center.parent();
+    try testing.expectEqual(&root, center_parent.get());
+
+    _ = try center_parent.remove();
+    try testing.expectEqual(null, center_parent.get());
+    try testing.expectEqual(null, center_siblings.previous());
+    try testing.expectEqual(null, center_siblings.next());
+
+    _ = try center_parent.set(&root);
+    try testing.expectEqual(&root, center_parent.get());
 }

@@ -3,7 +3,12 @@
     .version = "0.6.0",
     .fingerprint = 0xedbeac55a3c991a3,
     .minimum_zig_version = "0.15.1",
-    .dependencies = .{},
+    .dependencies = .{
+        .iteratorz = .{
+            .url = "git+https://github.com/mishieck/iteratorz#01807ba5ebf330611851b854b474c214d5200d64",
+            .hash = "iteratorz-0.2.1-xrS30V1SAQD7kDWpr8WxbMYmy4BrnlYxEAVH5VFz6G0m",
+        },
+    },
     .paths = .{
         "build.zig",
         "build.zig.zon",

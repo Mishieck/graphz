@@ -4,13 +4,34 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const mod = b.addModule("graphz", .{
-        .root_source_file = b.path("src/root.zig"),
+    const iteratorz = b.dependency("iteratorz", .{
         .target = target,
+        .optimize = optimize,
     });
 
+    const mod = b.addModule(
+        "graphz",
+        .{
+            .root_source_file = b.path("src/root.zig"),
+            .target = target,
+            .imports = &.{.{
+                .name = "iteratorz",
+                .module = iteratorz.module("iteratorz"),
+            }},
+        },
+    );
+
     const examples = [_][]const u8{ "node", "tree_node", "graph_node_conversions", "traversal" };
-    inline for (examples) |name| addExample(b, target, optimize, name, mod);
+    inline for (examples) |name| addExample(
+        b,
+        target,
+        optimize,
+        name,
+        &.{
+            .{ .name = "graphz", .module = mod },
+            .{ .name = "iteratorz", .module = iteratorz.module("iteratorz") },
+        },
+    );
 
     const mod_tests = b.addTest(.{ .root_module = mod });
     const run_mod_tests = b.addRunArtifact(mod_tests);
@@ -24,7 +45,7 @@ fn addExample(
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
     comptime name: []const u8,
-    mod: *std.Build.Module,
+    imports: []const std.Build.Module.Import,
 ) void {
     const examples_node = b.addExecutable(.{
         .name = "example_" ++ name,
@@ -32,9 +53,7 @@ fn addExample(
             .root_source_file = b.path("examples/" ++ name ++ ".zig"),
             .target = target,
             .optimize = optimize,
-            .imports = &.{
-                .{ .name = "graphz", .module = mod },
-            },
+            .imports = imports,
         }),
     });
 
