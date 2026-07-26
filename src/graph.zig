@@ -176,10 +176,7 @@ pub fn Node(comptime Data: type) type {
                 traversal: T.Method,
             ) !T.Iterator.This {
                 const skipper = try arena.create(T.Skipper.Default);
-                var nodes = try arena.create(Interface.List);
-                nodes.* = .init(arena);
-                try nodes.append(node);
-                skipper.* = .init(nodes);
+                skipper.* = .init();
                 return traversal.traverse(arena, node, &skipper.interface);
             }
         };

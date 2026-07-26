@@ -47,19 +47,16 @@ pub fn Node(comptime Data: type) type {
             arena: mem.Allocator,
             traversal: T.Method,
         ) !T.Iterator.This {
-            var nodes = try arena.create(Interface.List);
-            nodes.* = .init(arena);
-            try nodes.append(interface);
             var skipper = try arena.create(Skipper);
-            skipper.* = .init(nodes);
+            skipper.* = .init();
             return try traversal.traverse(arena, interface, &skipper.interface);
         }
 
         pub const Skipper = struct {
             interface: T.Skipper.Interface,
 
-            pub fn init(nodes: *Interface.List) Skipper {
-                return .{ .interface = .{ .skip = skipParent, .nodes = nodes } };
+            pub fn init() Skipper {
+                return .{ .interface = .{ .skip = skipParent } };
             }
 
             pub fn skipParent(

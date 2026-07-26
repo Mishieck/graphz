@@ -24,16 +24,17 @@ pub fn Traversal(Data: type) type {
                 node: *NI,
                 skipper: *Skipper.Interface,
             ) !Iterator.This {
-                var nodes = graph.Vector(Data).init(arena);
+                const nodes = try arena.create(graph.Vector(Data));
+                nodes.* = .init(arena);
                 try nodes.append(node);
 
                 return switch (self.*) {
-                    .level_order => traverseInfer(arena, LevelOrderTraversal.init(skipper)),
+                    .level_order => traverseInfer(arena, LevelOrderTraversal.init(skipper, nodes)),
                     .post_order => traverseInfer(
                         arena,
-                        PostOrderTraversal.init(skipper, .init(arena)),
+                        PostOrderTraversal.init(skipper, nodes, .init(arena)),
                     ),
-                    .pre_order => traverseInfer(arena, PreOrderTraversal.init(skipper)),
+                    .pre_order => traverseInfer(arena, PreOrderTraversal.init(skipper, nodes)),
                     _ => unreachable,
                 };
             }
@@ -55,17 +56,19 @@ pub fn Traversal(Data: type) type {
 
                 interface: Interface,
                 skipper: Skipper,
+                nodes: *NI.List,
 
-                pub fn init(skipper: *Skipper.Interface) It {
+                pub fn init(skipper: *Skipper.Interface, nodes: *NI.List) It {
                     return .{
                         .interface = .{ .current = current },
                         .skipper = .init(skipper),
+                        .nodes = nodes,
                     };
                 }
 
                 pub fn current(getter: *Interface) !?*NI {
                     const self: *It = @fieldParentPtr("interface", getter);
-                    var nodes = self.skipper.interface.nodes;
+                    var nodes = self.nodes;
                     if (nodes.items.len == 0) return null;
                     const head = nodes.orderedRemove(0);
 
@@ -88,19 +91,21 @@ pub fn Traversal(Data: type) type {
 
                 interface: Interface,
                 skipper: Skipper,
+                nodes: *NI.List,
                 processed: Processed,
 
-                pub fn init(skipper: *Skipper.Interface, processed: Processed) It {
+                pub fn init(skipper: *Skipper.Interface, nodes: *NI.List, processed: Processed) It {
                     return .{
                         .interface = .{ .current = current },
                         .skipper = .init(skipper),
+                        .nodes = nodes,
                         .processed = processed,
                     };
                 }
 
                 pub fn current(getter: *Interface) !?*NI {
                     const self: *It = @fieldParentPtr("interface", getter);
-                    var nodes = self.skipper.interface.nodes;
+                    var nodes = self.nodes;
                     if (nodes.items.len == 0) return null;
                     const head = nodes.getLast();
                     if (self.processed.get(head)) |_| return nodes.pop().?;
@@ -122,17 +127,19 @@ pub fn Traversal(Data: type) type {
 
                 interface: Interface,
                 skipper: Skipper,
+                nodes: *NI.List,
 
-                pub fn init(skipper: *Skipper.Interface) It {
+                pub fn init(skipper: *Skipper.Interface, nodes: *NI.List) It {
                     return .{
                         .interface = .{ .current = current },
                         .skipper = .init(skipper),
+                        .nodes = nodes,
                     };
                 }
 
                 pub fn current(getter: *Interface) !?*NI {
                     const self: *It = @fieldParentPtr("interface", getter);
-                    var nodes = self.skipper.interface.nodes;
+                    var nodes = self.nodes;
                     if (nodes.items.len == 0) return null;
                     const head = nodes.pop().?;
 
@@ -254,7 +261,6 @@ pub fn Traversal(Data: type) type {
                     index: usize,
                     neighbors: NI.List,
                 ) bool,
-                nodes: *NI.List,
             };
 
             pub const Default = struct {
@@ -262,8 +268,8 @@ pub fn Traversal(Data: type) type {
 
                 interface: Interface,
 
-                pub fn init(nodes: *NI.List) Default {
-                    return .{ .interface = .{ .skip = dontSkip, .nodes = nodes } };
+                pub fn init() Default {
+                    return .{ .interface = .{ .skip = dontSkip } };
                 }
 
                 pub fn dontSkip(
