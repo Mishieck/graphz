@@ -39,10 +39,10 @@ fn traverse(
     traversal: Traversal.Method,
     expectations: []const u8,
 ) !void {
-    var it = try node.interface.traverse(node.interface, arena, traversal);
+    var it = try node.traverse(arena, traversal);
     for (expectations) |expected| {
         if (try it.current()) |actual| {
-            try testing.expectEqual(expected, actual.data);
+            try testing.expectEqual(expected, actual.data());
         } else return error.IsNull;
     }
 }
