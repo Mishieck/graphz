@@ -4,6 +4,7 @@ const debug = std.debug;
 const testing = std.testing;
 const ArrayList = std.array_list.Managed;
 
+const iteratorz = @import("iteratorz");
 const graph = @import("graph.zig");
 const Traversal = @import("traversal.zig").Traversal;
 
@@ -15,6 +16,7 @@ pub fn Node(comptime Data: type) type {
         const Parent = NodeParent(Data);
         const Children = NodeChildren(Data);
         const Siblings = NodeSiblings(Data);
+        pub const Iterator = iteratorz.iterator.ReadableIterator(*Self, void).This;
 
         interface: Interface,
 
@@ -24,7 +26,7 @@ pub fn Node(comptime Data: type) type {
                 .interface = .{
                     .data = node_data,
                     .neighbors = neighbors,
-                    .traverse = traverse,
+                    .traverse = traverseInterface,
                     .fromData = fromData,
                 },
             };
@@ -42,14 +44,27 @@ pub fn Node(comptime Data: type) type {
             return self.interface.data;
         }
 
-        pub fn traverse(
-            interface: *Interface,
+        pub fn traverseInterface(
+            node: *Interface,
             arena: mem.Allocator,
             traversal: T.Method,
         ) !T.Iterator.This {
             var skipper = try arena.create(Skipper);
             skipper.* = .init();
-            return try traversal.traverse(arena, interface, &skipper.interface);
+            return traversal.traverse(arena, node, &skipper.interface);
+        }
+
+        pub inline fn traverse(
+            interface: *Interface,
+            arena: mem.Allocator,
+            traversal: T.Method,
+        ) anyerror!Iterator {
+            var it = try interface.traverse(interface, arena, traversal);
+            return it.to(iteratorz.map.Readable(iteratorz.iterator.Iterator(*Interface, void), toTreeNode)).*;
+        }
+
+        pub fn toTreeNode(interface: *Interface) !*Self {
+            return @fieldParentPtr("interface", interface);
         }
 
         pub const Skipper = struct {
@@ -117,7 +132,7 @@ test Node {
     for ([_]u8{ 0, 1, 2, 3 }) |expected| {
         const actual = try it.current();
         try testing.expect(actual != null);
-        try testing.expectEqual(expected, actual.?.data);
+        try testing.expectEqual(expected, actual.?.data());
     }
 }
 

@@ -319,7 +319,7 @@ fn testTraverse(comptime method: Traversal(u8).Method, expectations: []const u8)
 
     for (expectations) |expected| {
         if (try it.current()) |actual| {
-            try testing.expectEqual(expected, actual.data);
+            try testing.expectEqual(expected, actual.data());
         } else return error.IsNull;
     }
 }

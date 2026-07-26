@@ -4,6 +4,7 @@ const debug = std.debug;
 const testing = std.testing;
 const ArrayList = std.array_list.Managed;
 
+const iteratorz = @import("iteratorz");
 const Traversal = @import("traversal.zig").Traversal;
 
 pub const Edge = [2]usize;
@@ -99,6 +100,7 @@ pub fn Node(comptime Data: type) type {
     return struct {
         const Self = @This();
         pub const Neighbors = ArrayList(*Self);
+        pub const Iterator = iteratorz.iterator.ReadableIterator(Self, void).This;
 
         interface: *Interface,
 
@@ -131,8 +133,13 @@ pub fn Node(comptime Data: type) type {
             ns.deinit();
         }
 
-        pub fn traverse(self: *Self, arena: mem.Allocator, traversal: T.Method) !T.Iterator.This {
-            return self.interface.traverse(self.interface, arena, traversal);
+        pub inline fn traverse(self: *Self, arena: mem.Allocator, traversal: T.Method) !Iterator {
+            var it = try self.interface.traverse(self.interface, arena, traversal);
+            return it.to(iteratorz.map.Readable(iteratorz.iterator.Iterator(*Interface, void), toNode)).*;
+        }
+
+        pub fn toNode(interface: *Interface) !Self {
+            return .init(interface);
         }
 
         const T = Traversal(Data);
@@ -146,7 +153,7 @@ pub fn Node(comptime Data: type) type {
             var vector = Vector(Data).init(arena);
             defer vector.deinit();
             var it = try self.traverse(arena, .level_order);
-            while (try it.current()) |node| try vector.append(node);
+            while (try it.current()) |node| try vector.append(node.interface);
             return Graph(Data).fromVector(arena, vector);
         }
 
