@@ -41,7 +41,7 @@ fn traverse(
 ) !void {
     var it = try node.interface.traverse(node.interface, arena, traversal);
     for (expectations) |expected| {
-        if (try it.next()) |actual| {
+        if (try it.current()) |actual| {
             try testing.expectEqual(expected, actual.data);
         } else return error.IsNull;
     }

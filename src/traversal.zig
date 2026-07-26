@@ -23,7 +23,7 @@ pub fn Traversal(Data: type) type {
                 arena: mem.Allocator,
                 node: *NI,
                 skipper: *Skipper.Interface,
-            ) !Iterator {
+            ) !Iterator.This {
                 var nodes = graph.Vector(Data).init(arena);
                 try nodes.append(node);
 
@@ -38,33 +38,40 @@ pub fn Traversal(Data: type) type {
                 };
             }
 
-            pub fn traverseInfer(arena: mem.Allocator, traversal: anytype) !Iterator {
-                const it = try arena.create(@TypeOf(traversal));
-                it.* = traversal;
-                return .init(&it.interface);
+            pub fn traverseInfer(arena: mem.Allocator, traversal: anytype) !Iterator.This {
+                var t = try arena.create(@TypeOf(traversal));
+                t.* = traversal;
+                var iterable = try arena.create(Iterable);
+                iterable.* = .init(&t.interface);
+                var default = try arena.create(Iterator.Default);
+                default.* = .init(&iterable.interface);
+                return .init(&default.interface);
             }
 
             // Iterator for level-order traversal.
             const LevelOrderTraversal = struct {
                 const It = @This();
+                const Interface = Iterable.Getter;
 
-                interface: Iterator.Interface,
+                interface: Interface,
+                skipper: Skipper,
 
                 pub fn init(skipper: *Skipper.Interface) It {
                     return .{
-                        .interface = .{ .next = next, .skipper = .init(skipper) },
+                        .interface = .{ .current = current },
+                        .skipper = .init(skipper),
                     };
                 }
 
-                pub fn next(iterator: *Iterator.Interface) !?*NI {
-                    const self: *It = @fieldParentPtr("interface", iterator);
-                    var nodes = iterator.skipper.interface.nodes;
+                pub fn current(getter: *Interface) !?*NI {
+                    const self: *It = @fieldParentPtr("interface", getter);
+                    var nodes = self.skipper.interface.nodes;
                     if (nodes.items.len == 0) return null;
                     const head = nodes.orderedRemove(0);
 
                     var i: usize = 0;
                     for (head.neighbors.items) |neighbor| {
-                        const skip = self.interface.skipper.skip(head, i, head.neighbors);
+                        const skip = self.skipper.skip(head, i, head.neighbors);
                         if (!skip) try nodes.append(neighbor);
                         i += 1;
                     }
@@ -76,54 +83,63 @@ pub fn Traversal(Data: type) type {
             // Iterator for post-order traversal.
             const PostOrderTraversal = struct {
                 const It = @This();
+                const Interface = Iterable.Getter;
                 const Processed = std.AutoHashMap(*const NI, *const NI);
 
-                interface: Iterator.Interface,
+                interface: Interface,
+                skipper: Skipper,
                 processed: Processed,
 
                 pub fn init(skipper: *Skipper.Interface, processed: Processed) It {
                     return .{
-                        .interface = .{ .next = next, .skipper = .init(skipper) },
+                        .interface = .{ .current = current },
+                        .skipper = .init(skipper),
                         .processed = processed,
                     };
                 }
 
-                pub fn next(iterator: *Iterator.Interface) !?*NI {
-                    const self: *It = @fieldParentPtr("interface", iterator);
-                    var nodes = iterator.skipper.interface.nodes;
+                pub fn current(getter: *Interface) !?*NI {
+                    const self: *It = @fieldParentPtr("interface", getter);
+                    var nodes = self.skipper.interface.nodes;
                     if (nodes.items.len == 0) return null;
                     const head = nodes.getLast();
                     if (self.processed.get(head)) |_| return nodes.pop().?;
                     var it = mem.reverseIterator(head.neighbors.items);
                     var i: usize = 0;
                     while (it.next()) |n| : (i += 1) {
-                        const skip = iterator.skipper.skip(n, i, head.neighbors);
+                        const skip = self.skipper.skip(n, i, head.neighbors);
                         if (!skip) try nodes.append(n);
                     }
                     try self.processed.put(head, head);
-                    return iterator.next(iterator);
+                    return current(getter);
                 }
             };
 
             // Iterator for pre-order traversal.
             const PreOrderTraversal = struct {
                 const It = @This();
+                const Interface = Iterable.Getter;
 
-                interface: Iterator.Interface,
+                interface: Interface,
+                skipper: Skipper,
 
                 pub fn init(skipper: *Skipper.Interface) It {
-                    return .{ .interface = .{ .next = next, .skipper = .init(skipper) } };
+                    return .{
+                        .interface = .{ .current = current },
+                        .skipper = .init(skipper),
+                    };
                 }
 
-                pub fn next(iterator: *Iterator.Interface) !?*NI {
-                    var nodes = iterator.skipper.interface.nodes;
+                pub fn current(getter: *Interface) !?*NI {
+                    const self: *It = @fieldParentPtr("interface", getter);
+                    var nodes = self.skipper.interface.nodes;
                     if (nodes.items.len == 0) return null;
                     const head = nodes.pop().?;
 
                     var it = mem.reverseIterator(head.neighbors.items);
                     var i: usize = 0;
                     while (it.next()) |n| : (i += 1) {
-                        const skip = iterator.skipper.skip(n, i, head.neighbors);
+                        const skip = self.skipper.skip(n, i, head.neighbors);
                         if (!skip) try nodes.append(n);
                     }
 
@@ -132,21 +148,87 @@ pub fn Traversal(Data: type) type {
             };
         };
 
-        pub const Iterator = struct {
-            interface: *Interface,
+        pub const Iterator = iteratorz.iterator.Iterator(*NI, void).Readable;
 
-            pub fn init(interface: *Interface) Iterator {
-                return .{ .interface = interface };
-            }
+        pub const Iterable = struct {
+            const Self = @This();
 
-            pub fn next(self: *Iterator) anyerror!?*NI {
-                return self.interface.next(self.interface);
-            }
-
-            pub const Interface = struct {
-                next: *const fn (*Interface) anyerror!?*NI,
-                skipper: Skipper,
+            pub const Interface = iteratorz.iterable.Iterable(*NI, void).Interface;
+            pub const Getter = struct {
+                current: *const fn (getter: *Getter) anyerror!?*NI,
             };
+            pub const Value = Data;
+            pub const StateType = void;
+
+            interface: Interface,
+            getter: *Getter,
+            current: ?*NI = null,
+            set: bool = false,
+
+            pub fn init(getter: *Getter) Self {
+                return .{
+                    .interface = .{
+                        .getValue = getValue,
+                        .setValue = setValue,
+                        .getState = getState,
+                        .setState = setState,
+                        .setNextState = setNextState,
+                        .setPreviousState = setPreviousState,
+                        .setInitialState = setInitialState,
+                        .setFinalState = setFinalState,
+                        .isStateValid = isStateValid,
+                    },
+                    .getter = getter,
+                };
+            }
+
+            pub fn getValue(iterable: *Interface) anyerror!*NI {
+                const self: *Self = @fieldParentPtr("interface", iterable);
+                return self.current.?;
+            }
+
+            pub fn setValue(iterable: *Interface, value: *NI) anyerror!*Interface {
+                _ = value;
+                return iterable;
+            }
+
+            pub fn getState(iterable: *Interface) anyerror!StateType {
+                _ = iterable;
+                return;
+            }
+
+            pub fn setState(iterable: *Interface, state: StateType) anyerror!*Interface {
+                _ = state;
+                return iterable;
+            }
+
+            pub fn setNextState(iterable: *Interface) anyerror!*Interface {
+                var self: *Self = @fieldParentPtr("interface", iterable);
+                self.current = try self.getter.current(self.getter);
+                if (self.current == null) return error.InvalidState;
+                return iterable;
+            }
+
+            pub fn setPreviousState(iterable: *Interface) anyerror!*Interface {
+                return iterable;
+            }
+
+            pub fn setInitialState(iterable: *Interface) anyerror!*Interface {
+                return iterable;
+            }
+
+            pub fn setFinalState(iterable: *Interface) anyerror!*Interface {
+                return iterable;
+            }
+
+            pub fn isStateValid(iterable: *Interface) anyerror!bool {
+                const self: *Self = @fieldParentPtr("interface", iterable);
+                if (!self.set) {
+                    self.current = try self.getter.current(self.getter);
+                    self.set = true;
+                }
+                return if (self.current) |_| true else false;
+            }
         };
 
         pub const Skipper = struct {
@@ -228,8 +310,9 @@ fn testTraverse(comptime method: Traversal(u8).Method, expectations: []const u8)
 
     var node = N.init(&root.interface);
     var it = try node.traverse(allocator, method);
+
     for (expectations) |expected| {
-        if (try it.next()) |actual| {
+        if (try it.current()) |actual| {
             try testing.expectEqual(expected, actual.data);
         } else return error.IsNull;
     }

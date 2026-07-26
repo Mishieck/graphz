@@ -46,7 +46,7 @@ pub fn Node(comptime Data: type) type {
             interface: *Interface,
             arena: mem.Allocator,
             traversal: T.Method,
-        ) !T.Iterator {
+        ) !T.Iterator.This {
             var nodes = try arena.create(Interface.List);
             nodes.* = .init(arena);
             try nodes.append(interface);
@@ -118,7 +118,7 @@ test Node {
 
     var it = try N.traverse(&root.interface, allocator, .level_order);
     for ([_]u8{ 0, 1, 2, 3 }) |expected| {
-        const actual = try it.next();
+        const actual = try it.current();
         try testing.expect(actual != null);
         try testing.expectEqual(expected, actual.?.data);
     }

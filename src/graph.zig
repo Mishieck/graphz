@@ -131,7 +131,7 @@ pub fn Node(comptime Data: type) type {
             ns.deinit();
         }
 
-        pub fn traverse(self: *Self, arena: mem.Allocator, traversal: T.Method) !T.Iterator {
+        pub fn traverse(self: *Self, arena: mem.Allocator, traversal: T.Method) !T.Iterator.This {
             return self.interface.traverse(self.interface, arena, traversal);
         }
 
@@ -146,7 +146,7 @@ pub fn Node(comptime Data: type) type {
             var vector = Vector(Data).init(arena);
             defer vector.deinit();
             var it = try self.traverse(arena, .level_order);
-            while (try it.next()) |node| try vector.append(node);
+            while (try it.current()) |node| try vector.append(node);
             return Graph(Data).fromVector(arena, vector);
         }
 
@@ -174,7 +174,7 @@ pub fn Node(comptime Data: type) type {
                 node: *Interface,
                 arena: mem.Allocator,
                 traversal: T.Method,
-            ) !T.Iterator {
+            ) !T.Iterator.This {
                 const skipper = try arena.create(T.Skipper.Default);
                 var nodes = try arena.create(Interface.List);
                 nodes.* = .init(arena);
@@ -193,7 +193,7 @@ pub fn Node(comptime Data: type) type {
                 node: *Interface,
                 arena: mem.Allocator,
                 traversal: T.Method,
-            ) anyerror!T.Iterator,
+            ) anyerror!T.Iterator.This,
             fromData: *const fn (arena: mem.Allocator, data: Data) anyerror!*Interface,
         };
     };
