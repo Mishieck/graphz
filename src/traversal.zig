@@ -55,7 +55,7 @@ pub fn Traversal(Data: type) type {
                 const Interface = Iterable.Getter;
 
                 interface: Interface,
-                skipper: Skipper,
+                skipper: Skipper.This,
                 nodes: *NI.List,
 
                 pub fn init(skipper: *Skipper.Interface, nodes: *NI.List) It {
@@ -90,7 +90,7 @@ pub fn Traversal(Data: type) type {
                 const Processed = std.AutoHashMap(*const NI, *const NI);
 
                 interface: Interface,
-                skipper: Skipper,
+                skipper: Skipper.This,
                 nodes: *NI.List,
                 processed: Processed,
 
@@ -126,7 +126,7 @@ pub fn Traversal(Data: type) type {
                 const Interface = Iterable.Getter;
 
                 interface: Interface,
-                skipper: Skipper,
+                skipper: Skipper.This,
                 nodes: *NI.List,
 
                 pub fn init(skipper: *Skipper.Interface, nodes: *NI.List) It {
@@ -240,20 +240,28 @@ pub fn Traversal(Data: type) type {
         };
 
         pub const Skipper = struct {
-            interface: *Interface,
+            init: *const Init,
+            deinit: *const Deinit,
 
-            pub fn init(skipper: *Interface) Skipper {
-                return .{ .interface = skipper };
-            }
+            pub const Init = fn (gpa: mem.Allocator) anyerror!*Interface;
+            pub const Deinit = fn (interface: *Interface, gpa: mem.Allocator) anyerror!void;
 
-            pub fn skip(
-                self: *Skipper,
-                node: *const NI,
-                index: usize,
-                neighbors: NI.List,
-            ) bool {
-                return self.interface.skip(self.interface, node, index, neighbors);
-            }
+            pub const This = struct {
+                interface: *Interface,
+
+                pub fn init(skipper: *Interface) This {
+                    return .{ .interface = skipper };
+                }
+
+                pub fn skip(
+                    self: *This,
+                    node: *const NI,
+                    index: usize,
+                    neighbors: NI.List,
+                ) bool {
+                    return self.interface.skip(self.interface, node, index, neighbors);
+                }
+            };
 
             pub const Interface = struct {
                 skip: *const fn (
@@ -267,24 +275,39 @@ pub fn Traversal(Data: type) type {
             pub const Default = struct {
                 const Skip = @This();
 
-                interface: Interface,
+                pub const value = Skipper{ .init = init, .deinit = deinit };
 
-                pub fn init() Default {
-                    return .{ .interface = .{ .skip = dontSkip } };
+                pub fn init(gpa: mem.Allocator) anyerror!*Interface {
+                    const inner = try gpa.create(Inner);
+                    inner.* = .init();
+                    return &inner.interface;
                 }
 
-                pub fn dontSkip(
-                    skipper: *Interface,
-                    node: *const NI,
-                    index: usize,
-                    neighbors: NI.List,
-                ) bool {
-                    _ = skipper;
-                    _ = node;
-                    _ = index;
-                    _ = neighbors;
-                    return false;
+                pub fn deinit(interface: *Interface, gpa: mem.Allocator) anyerror!void {
+                    const skipper: *Inner = @fieldParentPtr("interface", interface);
+                    gpa.destroy(skipper);
                 }
+
+                pub const Inner = struct {
+                    interface: Interface,
+
+                    pub fn init() Inner {
+                        return .{ .interface = .{ .skip = dontSkip } };
+                    }
+
+                    pub fn dontSkip(
+                        skipper: *Interface,
+                        node: *const NI,
+                        index: usize,
+                        neighbors: NI.List,
+                    ) bool {
+                        _ = skipper;
+                        _ = node;
+                        _ = index;
+                        _ = neighbors;
+                        return false;
+                    }
+                };
             };
         };
     };

@@ -134,8 +134,20 @@ pub fn Node(comptime Data: type) type {
         }
 
         pub inline fn traverse(self: *Self, arena: mem.Allocator, traversal: T.Method) !Iterator {
-            var it = try self.interface.traverse(self.interface, arena, traversal);
-            return it.to(iteratorz.map.Readable(iteratorz.iterator.Iterator(*Interface, T.State), toNode)).*;
+            var it = try traverseInterface(self.interface, arena, traversal);
+            return it.to(
+                iteratorz.map.Readable(iteratorz.iterator.Iterator(*Interface, T.State), toNode),
+            ).*;
+        }
+
+        pub fn traverseInterface(
+            interface: *Interface,
+            arena: mem.Allocator,
+            traversal: T.Method,
+        ) !T.Iterator.This {
+            const skipper = try interface.skipper.init(arena);
+            const t = try traversal.traverse(arena, interface, skipper);
+            return t;
         }
 
         pub fn toNode(interface: *Interface) !Self {
@@ -165,7 +177,7 @@ pub fn Node(comptime Data: type) type {
                     .interface = .{
                         .data = d,
                         .neighbors = ns,
-                        .traverse = traverseDefault,
+                        .skipper = T.Skipper.Default.value,
                         .fromData = fromData,
                     },
                 };
@@ -176,16 +188,6 @@ pub fn Node(comptime Data: type) type {
                 node.* = .init(d, .init(arena));
                 return &node.interface;
             }
-
-            pub fn traverseDefault(
-                node: *Interface,
-                arena: mem.Allocator,
-                traversal: T.Method,
-            ) !T.Iterator.This {
-                const skipper = try arena.create(T.Skipper.Default);
-                skipper.* = .init();
-                return traversal.traverse(arena, node, &skipper.interface);
-            }
         };
 
         pub const Interface = struct {
@@ -193,11 +195,7 @@ pub fn Node(comptime Data: type) type {
 
             data: Data,
             neighbors: List,
-            traverse: *const fn (
-                node: *Interface,
-                arena: mem.Allocator,
-                traversal: T.Method,
-            ) anyerror!T.Iterator.This,
+            skipper: T.Skipper,
             fromData: *const fn (arena: mem.Allocator, data: Data) anyerror!*Interface,
         };
     };

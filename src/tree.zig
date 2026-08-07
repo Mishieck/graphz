@@ -26,7 +26,7 @@ pub fn Node(comptime Data: type) type {
                 .interface = .{
                     .data = node_data,
                     .neighbors = neighbors,
-                    .traverse = traverseInterface,
+                    .skipper = Skipper.value,
                     .fromData = fromData,
                 },
             };
@@ -49,9 +49,7 @@ pub fn Node(comptime Data: type) type {
             arena: mem.Allocator,
             traversal: T.Method,
         ) !T.Iterator.This {
-            var skipper = try arena.create(Skipper);
-            skipper.* = .init();
-            return traversal.traverse(arena, node, &skipper.interface);
+            return graph.Node(Data).traverseInterface(node, arena, traversal);
         }
 
         pub inline fn traverse(
@@ -59,7 +57,7 @@ pub fn Node(comptime Data: type) type {
             arena: mem.Allocator,
             traversal: T.Method,
         ) anyerror!Iterator {
-            var it = try self.interface.traverse(&self.interface, arena, traversal);
+            var it = try traverseInterface(&self.interface, arena, traversal);
             return it.to(iteratorz.map.Readable(iteratorz.iterator.Iterator(*Interface, T.State), toTreeNode)).*;
         }
 
@@ -68,23 +66,38 @@ pub fn Node(comptime Data: type) type {
         }
 
         pub const Skipper = struct {
-            interface: T.Skipper.Interface,
+            pub const value = T.Skipper{ .init = initSkipper, .deinit = deinit };
 
-            pub fn init() Skipper {
-                return .{ .interface = .{ .skip = skipParent } };
+            pub fn initSkipper(gpa: mem.Allocator) anyerror!*T.Skipper.Interface {
+                const inner = try gpa.create(Inner);
+                inner.* = .init();
+                return &inner.interface;
             }
 
-            pub fn skipParent(
-                self: *T.Skipper.Interface,
-                node: *const Interface,
-                index: usize,
-                neighbors: Interface.List,
-            ) bool {
-                _ = self;
-                _ = node;
-                _ = neighbors;
-                return index == 0;
+            pub fn deinit(interface: *T.Skipper.Interface, gpa: mem.Allocator) anyerror!void {
+                const skipper: *Inner = @fieldParentPtr("interface", interface);
+                gpa.destroy(skipper);
             }
+
+            pub const Inner = struct {
+                interface: T.Skipper.Interface,
+
+                pub fn init() Inner {
+                    return .{ .interface = .{ .skip = skipParent } };
+                }
+
+                pub fn skipParent(
+                    self: *T.Skipper.Interface,
+                    node: *const Interface,
+                    index: usize,
+                    neighbors: Interface.List,
+                ) bool {
+                    _ = self;
+                    _ = node;
+                    _ = neighbors;
+                    return index == 0;
+                }
+            };
         };
 
         pub fn fromData(arena: mem.Allocator, node_data: Data) !*Interface {
