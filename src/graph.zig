@@ -100,7 +100,7 @@ pub fn Node(comptime Data: type) type {
     return struct {
         const Self = @This();
         pub const Neighbors = ArrayList(*Self);
-        pub const Iterator = iteratorz.iterator.ReadableIterator(Self, T.State).This;
+        pub const Iterator = iteratorz.iterator.GetterIterator(Self, T.State).This;
 
         interface: *Interface,
 
@@ -134,10 +134,11 @@ pub fn Node(comptime Data: type) type {
         }
 
         pub inline fn traverse(self: *Self, arena: mem.Allocator, traversal: T.Method) !Iterator {
-            var it = try traverseInterface(self.interface, arena, traversal);
-            return it.to(
-                iteratorz.map.Readable(iteratorz.iterator.Iterator(*Interface, T.State), toNode),
-            ).*;
+            const it = try traverseInterface(self.interface, arena, traversal);
+            const Map = iteratorz.map.GetterMap(iteratorz.iterator.Iterator(*Interface, T.State), toNode);
+            var mapped = try arena.create(Map);
+            mapped.* = .init(it.interface);
+            return .init(&mapped.interface);
         }
 
         pub fn traverseInterface(

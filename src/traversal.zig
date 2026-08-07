@@ -155,7 +155,7 @@ pub fn Traversal(Data: type) type {
             };
         };
 
-        pub const Iterator = iteratorz.iterator.Iterator(*NI, State).Readable;
+        pub const Iterator = iteratorz.iterator.Iterator(*NI, State).Getter;
         pub const State = ?*NI;
 
         pub const Iterable = struct {
