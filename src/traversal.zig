@@ -155,22 +155,21 @@ pub fn Traversal(Data: type) type {
             };
         };
 
-        pub const Iterator = iteratorz.iterator.Iterator(*NI, void).Readable;
+        pub const Iterator = iteratorz.iterator.Iterator(*NI, State).Readable;
+        pub const State = ?*NI;
 
         pub const Iterable = struct {
             const Self = @This();
 
-            pub const Interface = iteratorz.iterable.Iterable(*NI, void).Interface;
+            pub const Interface = iteratorz.iterable.Iterable(*NI, State).Interface;
             pub const Getter = struct {
                 current: *const fn (getter: *Getter) anyerror!?*NI,
             };
             pub const Value = Data;
-            pub const StateType = void;
 
             interface: Interface,
             getter: *Getter,
-            current: ?*NI = null,
-            set: bool = false,
+            state: State = null,
 
             pub fn init(getter: *Getter) Self {
                 return .{
@@ -191,28 +190,30 @@ pub fn Traversal(Data: type) type {
 
             pub fn getValue(iterable: *Interface) anyerror!*NI {
                 const self: *Self = @fieldParentPtr("interface", iterable);
-                return self.current.?;
+                return self.state.?;
             }
 
             pub fn setValue(iterable: *Interface, value: *NI) anyerror!*Interface {
-                _ = value;
+                const self: *Self = @fieldParentPtr("interface", iterable);
+                self.state = value;
                 return iterable;
             }
 
-            pub fn getState(iterable: *Interface) anyerror!StateType {
-                _ = iterable;
-                return;
+            pub fn getState(iterable: *Interface) anyerror!State {
+                const self: *Self = @fieldParentPtr("interface", iterable);
+                return self.state;
             }
 
-            pub fn setState(iterable: *Interface, state: StateType) anyerror!*Interface {
-                _ = state;
+            pub fn setState(iterable: *Interface, state: State) anyerror!*Interface {
+                const self: *Self = @fieldParentPtr("interface", iterable);
+                self.state = state;
                 return iterable;
             }
 
             pub fn setNextState(iterable: *Interface) anyerror!*Interface {
                 var self: *Self = @fieldParentPtr("interface", iterable);
-                self.current = try self.getter.current(self.getter);
-                if (self.current == null) return error.InvalidState;
+                self.state = try self.getter.current(self.getter);
+                if (self.state == null) return error.InvalidState;
                 return iterable;
             }
 
@@ -221,20 +222,20 @@ pub fn Traversal(Data: type) type {
             }
 
             pub fn setInitialState(iterable: *Interface) anyerror!*Interface {
+                const self: *Self = @fieldParentPtr("interface", iterable);
+                self.state = null;
                 return iterable;
             }
 
             pub fn setFinalState(iterable: *Interface) anyerror!*Interface {
+                const self: *Self = @fieldParentPtr("interface", iterable);
+                while (self.state) |_| _ = try setNextState(iterable);
                 return iterable;
             }
 
             pub fn isStateValid(iterable: *Interface) anyerror!bool {
                 const self: *Self = @fieldParentPtr("interface", iterable);
-                if (!self.set) {
-                    self.current = try self.getter.current(self.getter);
-                    self.set = true;
-                }
-                return if (self.current) |_| true else false;
+                return if (self.state) |_| true else false;
             }
         };
 
@@ -318,7 +319,7 @@ fn testTraverse(comptime method: Traversal(u8).Method, expectations: []const u8)
     var it = try node.traverse(allocator, method);
 
     for (expectations) |expected| {
-        if (try it.current()) |actual| {
+        if (try it.next()) |actual| {
             try testing.expectEqual(expected, actual.data());
         } else return error.IsNull;
     }

@@ -100,7 +100,7 @@ pub fn Node(comptime Data: type) type {
     return struct {
         const Self = @This();
         pub const Neighbors = ArrayList(*Self);
-        pub const Iterator = iteratorz.iterator.ReadableIterator(Self, void).This;
+        pub const Iterator = iteratorz.iterator.ReadableIterator(Self, T.State).This;
 
         interface: *Interface,
 
@@ -135,7 +135,7 @@ pub fn Node(comptime Data: type) type {
 
         pub inline fn traverse(self: *Self, arena: mem.Allocator, traversal: T.Method) !Iterator {
             var it = try self.interface.traverse(self.interface, arena, traversal);
-            return it.to(iteratorz.map.Readable(iteratorz.iterator.Iterator(*Interface, void), toNode)).*;
+            return it.to(iteratorz.map.Readable(iteratorz.iterator.Iterator(*Interface, T.State), toNode)).*;
         }
 
         pub fn toNode(interface: *Interface) !Self {
@@ -153,7 +153,7 @@ pub fn Node(comptime Data: type) type {
             var vector = Vector(Data).init(arena);
             defer vector.deinit();
             var it = try self.traverse(arena, .level_order);
-            while (try it.current()) |node| try vector.append(node.interface);
+            while (try it.next()) |node| try vector.append(node.interface);
             return Graph(Data).fromVector(arena, vector);
         }
 

@@ -16,7 +16,7 @@ pub fn Node(comptime Data: type) type {
         const Parent = NodeParent(Data);
         const Children = NodeChildren(Data);
         const Siblings = NodeSiblings(Data);
-        pub const Iterator = iteratorz.iterator.ReadableIterator(*Self, void).This;
+        pub const Iterator = iteratorz.iterator.ReadableIterator(*Self, T.State).This;
 
         interface: Interface,
 
@@ -60,7 +60,7 @@ pub fn Node(comptime Data: type) type {
             traversal: T.Method,
         ) anyerror!Iterator {
             var it = try self.interface.traverse(&self.interface, arena, traversal);
-            return it.to(iteratorz.map.Readable(iteratorz.iterator.Iterator(*Interface, void), toTreeNode)).*;
+            return it.to(iteratorz.map.Readable(iteratorz.iterator.Iterator(*Interface, T.State), toTreeNode)).*;
         }
 
         pub fn toTreeNode(interface: *Interface) !*Self {
@@ -130,7 +130,7 @@ test Node {
 
     var it = try root.traverse(arena.allocator(), .level_order);
     for ([_]u8{ 0, 1, 2, 3 }) |expected| {
-        const actual = try it.current();
+        const actual = try it.next();
         try testing.expect(actual != null);
         try testing.expectEqual(expected, actual.?.data());
     }

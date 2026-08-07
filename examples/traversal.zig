@@ -41,7 +41,7 @@ fn traverse(
 ) !void {
     var it = try node.traverse(arena, traversal);
     for (expectations) |expected| {
-        if (try it.current()) |actual| {
+        if (try it.next()) |actual| {
             try testing.expectEqual(expected, actual.data());
         } else return error.IsNull;
     }
