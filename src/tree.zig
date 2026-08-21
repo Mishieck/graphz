@@ -141,14 +141,25 @@ test Node {
     try root.interface.neighbors.append(&center.interface);
     var right = try N.init(allocator, 3, &root);
     try root.interface.neighbors.append(&right.interface);
-    var left_of_left = try N.init(allocator, 4, &root);
+    var left_of_left = try N.init(allocator, 4, &left);
     try left.interface.neighbors.append(&left_of_left.interface);
 
-    var it = try root.traverse(arena.allocator(), .level_order);
-    for ([_]u8{ 0, 1, 2, 3 }) |expected| {
-        const actual = try it.next();
-        try testing.expect(actual != null);
-        try testing.expectEqual(expected, actual.?.data());
+    const expectations = [_]struct { Traversal(u8).Method, []const u8 }{
+        .{ .level_order, &.{ 0, 1, 2, 3, 4 } },
+        .{ .pre_order, &.{ 0, 1, 4, 2, 3 } },
+        .{ .post_order, &.{ 4, 1, 2, 3, 0 } },
+    };
+
+    inline for (expectations) |expectation| {
+        const traversal, const expected = expectation;
+        var it = try root.traverse(arena.allocator(), traversal);
+        var actual: [expected.len]u8 = undefined;
+        for (0..expected.len) |i| {
+            const node = try it.next();
+            try testing.expect(node != null);
+            actual[i] = node.?.data();
+        }
+        try testing.expectEqualSlices(u8, expected, &actual);
     }
 }
 

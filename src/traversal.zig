@@ -110,9 +110,10 @@ pub fn Traversal(Data: type) type {
                     const head = nodes.getLast();
                     if (self.processed.get(head)) |_| return nodes.pop().?;
                     var it = mem.reverseIterator(head.neighbors.items);
+                    const last_index, _ = @subWithOverflow(head.neighbors.items.len, 1);
                     var i: usize = 0;
                     while (it.next()) |n| : (i += 1) {
-                        const skip = self.skipper.skip(n, i, head.neighbors);
+                        const skip = self.skipper.skip(n, last_index - i, head.neighbors);
                         if (!skip) try nodes.append(n);
                     }
                     try self.processed.put(head, head);
@@ -144,9 +145,10 @@ pub fn Traversal(Data: type) type {
                     const head = nodes.pop().?;
 
                     var it = mem.reverseIterator(head.neighbors.items);
+                    const last_index, _ = @subWithOverflow(head.neighbors.items.len, 1);
                     var i: usize = 0;
                     while (it.next()) |n| : (i += 1) {
-                        const skip = self.skipper.skip(n, i, head.neighbors);
+                        const skip = self.skipper.skip(n, last_index - i, head.neighbors);
                         if (!skip) try nodes.append(n);
                     }
 
@@ -313,7 +315,7 @@ pub fn Traversal(Data: type) type {
     };
 }
 
-test "Traversal" {
+test Traversal {
     const expectations = [_]struct { Traversal(u8).Method, []const u8 }{
         .{ .level_order, &.{ 0, 1, 2, 3 } },
         .{ .post_order, &.{ 3, 1, 2, 0 } },
