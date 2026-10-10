@@ -11,11 +11,11 @@ const Traversal = @import("traversal.zig").Traversal;
 pub fn Node(comptime Data: type) type {
     return struct {
         const Self = @This();
-        const Interface = graph.Node(Data).Interface;
+        pub const Interface = graph.Node(Data).Interface;
         const T = Traversal(Data);
-        const Parent = NodeParent(Data);
-        const Children = NodeChildren(Data);
-        const Siblings = NodeSiblings(Data);
+        pub const Parent = NodeParent(Data);
+        pub const Children = NodeChildren(Data);
+        pub const Siblings = NodeSiblings(Data);
         pub const Iterator = iteratorz.iterator.GetterIterator(*Self, T.State).This;
 
         interface: Interface,
