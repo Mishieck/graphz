@@ -293,14 +293,14 @@ pub fn NodeChildren(Data: type) type {
         const Neighbors = graph.Vector(Data);
         const List = ArrayList(*TreeNode);
 
-        neighbors: *Neighbors,
+        node: *TreeNode,
 
         pub fn init(node: *TreeNode) Self {
-            return .{ .neighbors = &node.interface.neighbors };
+            return .{ .node = node };
         }
 
         pub fn get(self: *const Self, index: usize) *TreeNode {
-            return @fieldParentPtr("interface", self.neighbors.items[index + 1]);
+            return @fieldParentPtr("interface", self.node.interface.neighbors.items[index + 1]);
         }
 
         pub fn set(self: *Self, index: usize, node: *TreeNode) !*Self {
@@ -310,27 +310,33 @@ pub fn NodeChildren(Data: type) type {
         }
 
         pub fn orderedRemove(self: *Self, index: usize) *TreeNode {
-            return @fieldParentPtr("interface", self.neighbors.orderedRemove(index + 1));
+            return @fieldParentPtr("interface", self.node.interface.neighbors.orderedRemove(index + 1));
         }
 
-        pub fn insert(self: *Self, index: usize, node: *TreeNode) !*Self {
-            try self.neighbors.insert(index + 1, &node.interface);
-            return self;
+        pub fn insert(self: *Self, index: usize, child: *TreeNode) !*Self {
+            try self.node.interface.neighbors.insert(index + 1, &child.interface);
+            return self.setChildParent(child);
         }
 
-        pub fn append(self: *Self, node: *TreeNode) !*Self {
-            try self.neighbors.append(&node.interface);
-            return self;
+        pub fn append(self: *Self, child: *TreeNode) !*Self {
+            try self.node.interface.neighbors.append(&child.interface);
+            return self.setChildParent(child);
         }
 
         pub fn list(self: *const Self, gpa: mem.Allocator) !List {
             var neighbors = List.init(gpa);
-            for (0..self.neighbors.items.len - 1) |i| try neighbors.append(self.get(i));
+            for (0..self.node.interface.neighbors.items.len - 1) |i| try neighbors.append(self.get(i));
             return neighbors;
         }
 
         pub fn len(self: *const Self) usize {
-            return self.neighbors.items.len - 1;
+            return self.node.interface.neighbors.items.len - 1;
+        }
+
+        fn setChildParent(self: *Self, child: *TreeNode) !*Self {
+            var child_parent = child.parent();
+            _ = try child_parent.set(self.node);
+            return self;
         }
     };
 }
