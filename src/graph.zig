@@ -14,6 +14,7 @@ pub fn Graph(comptime Data: type) type {
         const Self = @This();
         pub const Nodes = ArrayList(Data);
         pub const Edges = ArrayList(Edge);
+        const Interface = Node(Data).Interface;
 
         nodes: Nodes,
         edges: Edges,
@@ -36,9 +37,13 @@ pub fn Graph(comptime Data: type) type {
             return .{ .nodes = nodes, .edges = edges };
         }
 
-        pub fn toVector(self: *const Self, arena: mem.Allocator, N: type) !Vector(Data) {
+        pub fn toVector(
+            self: *const Self,
+            arena: mem.Allocator,
+            fromData: Interface.FromData(),
+        ) !Vector(Data) {
             var vector = Vector(Data).init(arena);
-            for (self.nodes.items) |data| try vector.append(try N.fromData(arena, data));
+            for (self.nodes.items) |data| try vector.append(try fromData(arena, data));
 
             for (self.edges.items) |edge| {
                 const i, const j = edge;
@@ -74,7 +79,7 @@ test Graph {
     });
 
     var graph = G{ .nodes = nodes, .edges = edges };
-    const vector = try graph.toVector(arena.allocator(), N.Default);
+    const vector = try graph.toVector(arena.allocator(), N.Default.fromData);
     defer vector.deinit();
 
     graph = try G.fromVector(testing.allocator, vector);
@@ -157,8 +162,12 @@ pub fn Node(comptime Data: type) type {
 
         const T = Traversal(Data);
 
-        pub fn fromGraph(arena: mem.Allocator, graph: Graph(Data)) !Self {
-            const vector = try graph.toVector(arena, Default);
+        pub fn fromGraph(
+            arena: mem.Allocator,
+            fromData: Interface.FromData(),
+            graph: Graph(Data),
+        ) !Self {
+            const vector = try graph.toVector(arena, fromData);
             return .init(vector.items[0]);
         }
 
@@ -192,12 +201,16 @@ pub fn Node(comptime Data: type) type {
         };
 
         pub const Interface = struct {
-            pub const List = ArrayList(*Interface);
-
             data: Data,
             neighbors: List,
             skipper: T.Skipper,
-            fromData: *const fn (arena: mem.Allocator, data: Data) anyerror!*Interface,
+            fromData: FromData(),
+
+            pub const List = ArrayList(*Interface);
+
+            pub fn FromData() type {
+                return *const fn (arena: mem.Allocator, data: Data) anyerror!*Interface;
+            }
         };
     };
 }
@@ -225,7 +238,7 @@ test Node {
     var graph = G{ .nodes = nodes, .edges = edges };
 
     const N = Node(u8);
-    var node = try N.fromGraph(arena.allocator(), graph);
+    var node = try N.fromGraph(arena.allocator(), N.Default.fromData, graph);
     graph = try node.toGraph(arena.allocator());
 
     try testing.expectEqual(nodes.items.len, graph.nodes.items.len);

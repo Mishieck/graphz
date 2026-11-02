@@ -20,6 +20,25 @@ pub fn Node(comptime Data: type) type {
 
         interface: Interface,
 
+        pub fn create(arena: mem.Allocator, node_data: Data, parent_node: ?*Self) !*Self {
+            const neighbors = Interface.List.init(arena);
+            const node = try arena.create(Self);
+            node.* = Self{
+                .interface = .{
+                    .data = node_data,
+                    .neighbors = neighbors,
+                    .skipper = Skipper.value,
+                    .fromData = fromData,
+                },
+            };
+
+            try node.interface.neighbors.append(if (parent_node) |p| &p.interface else self: {
+                break :self &node.interface;
+            });
+
+            return node;
+        }
+
         pub fn init(arena: mem.Allocator, node_data: Data, parent_node: ?*Self) !Self {
             const neighbors = Interface.List.init(arena);
             var node = Self{
@@ -105,7 +124,14 @@ pub fn Node(comptime Data: type) type {
 
         pub fn fromData(arena: mem.Allocator, node_data: Data) !*Interface {
             const self = try arena.create(Self);
-            self.* = try .init(arena, node_data, null);
+            self.* = Self{
+                .interface = .{
+                    .data = node_data,
+                    .neighbors = .init(arena),
+                    .skipper = Skipper.value,
+                    .fromData = fromData,
+                },
+            };
             return &self.interface;
         }
 

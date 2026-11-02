@@ -31,7 +31,7 @@ pub fn main() !void {
     var graph = G{ .nodes = nodes, .edges = edges };
 
     const N = graphz.graph.Node(u8);
-    var node = try N.fromGraph(arena.allocator(), graph);
+    var node = try N.fromGraph(arena.allocator(), N.Default.fromData, graph);
     try testing.expectEqual(0, node.interface.data);
     try testing.expectEqual(0, node.data());
     graph = try node.toGraph(arena.allocator());
