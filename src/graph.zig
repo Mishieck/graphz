@@ -179,6 +179,21 @@ pub fn Node(comptime Data: type) type {
             return Graph(Data).fromVector(arena, vector);
         }
 
+        pub fn deinit(
+            self: *Self,
+            arena: mem.Allocator,
+            gpa: mem.Allocator,
+            deinitialize: *const Deinitialize,
+        ) void {
+          var it = self.traverse(arena, .post_order) catch return;
+          while (it.next() catch return) |n| {
+              var d = n.interface.data;
+              deinitialize(&d, gpa);
+          }
+        }
+
+        pub const Deinitialize = fn (data: *Data, gpa: mem.Allocator) void;
+
         pub const Default = struct {
             interface: Interface,
 

@@ -11,7 +11,8 @@ const Traversal = @import("traversal.zig").Traversal;
 pub fn Node(comptime Data: type) type {
     return struct {
         const Self = @This();
-        pub const Interface = graph.Node(Data).Interface;
+        const N = graph.Node(Data);
+        pub const Interface = N.Interface;
         const T = Traversal(Data);
         pub const Parent = NodeParent(Data);
         pub const Children = NodeChildren(Data);
@@ -87,8 +88,18 @@ pub fn Node(comptime Data: type) type {
             return @fieldParentPtr("interface", interface);
         }
 
+        pub fn deinit(
+            self: *Self,
+            arena: mem.Allocator,
+            gpa: mem.Allocator,
+            deinitialize: *const N.Deinitialize,
+        ) void {
+          var node = N.init(&self.interface);
+          node.deinit(arena, gpa, deinitialize);
+        }
+
         pub const Skipper = struct {
-            pub const value = T.Skipper{ .init = initSkipper, .deinit = deinit };
+            pub const value = T.Skipper{ .init = initSkipper, .deinit = deinitSkipper };
 
             pub fn initSkipper(gpa: mem.Allocator) anyerror!*T.Skipper.Interface {
                 const inner = try gpa.create(Inner);
@@ -96,7 +107,7 @@ pub fn Node(comptime Data: type) type {
                 return &inner.interface;
             }
 
-            pub fn deinit(interface: *T.Skipper.Interface, gpa: mem.Allocator) anyerror!void {
+            pub fn deinitSkipper(interface: *T.Skipper.Interface, gpa: mem.Allocator) anyerror!void {
                 const skipper: *Inner = @fieldParentPtr("interface", interface);
                 gpa.destroy(skipper);
             }
