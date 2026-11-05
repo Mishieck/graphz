@@ -186,8 +186,11 @@ pub fn Node(comptime Data: type) type {
         /// pointer of any of the aforementioned types, the same applies. If it
         /// is another pointer type, the data will be freed using `gpa.free`.
         /// Otherwise, the data will not be freed.
-        pub fn deinit(self: *Self, arena: mem.Allocator, gpa: mem.Allocator) void {
-            var it = self.traverse(arena, .post_order) catch return;
+        pub fn deinit(self: *Self, gpa: mem.Allocator) void {
+            var arena = std.heap.ArenaAllocator.init(testing.allocator);
+            defer arena.deinit();
+
+            var it = self.traverse(arena.allocator(), .post_order) catch return;
             while (it.next() catch return) |n| {
                 var d = n.interface.data;
 
@@ -324,7 +327,7 @@ test "Node.deinit" {
 fn testDeinit(arena: mem.Allocator, gpa: mem.Allocator, Data: type, data: [3]Data) !void {
     const N = Node(Data);
     var root = N.init(try N.Default.fromData(arena, data[0]));
-    defer root.deinit(arena, gpa);
+    defer root.deinit(gpa);
     const left = try N.Default.fromData(arena, data[1]);
     const right = try N.Default.fromData(arena, data[2]);
     try root.interface.neighbors.append(left);

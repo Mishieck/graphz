@@ -88,9 +88,9 @@ pub fn Node(comptime Data: type) type {
             return @fieldParentPtr("interface", interface);
         }
 
-        pub fn deinit(self: *Self, arena: mem.Allocator, gpa: mem.Allocator) void {
+        pub fn deinit(self: *Self, gpa: mem.Allocator) void {
             var node = N.init(&self.interface);
-            node.deinit(arena, gpa);
+            node.deinit(gpa);
         }
 
         pub const Skipper = struct {
