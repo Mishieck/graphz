@@ -179,17 +179,26 @@ pub fn Node(comptime Data: type) type {
             return Graph(Data).fromVector(arena, vector);
         }
 
-        pub fn deinit(
-            self: *Self,
-            arena: mem.Allocator,
-            gpa: mem.Allocator,
-            deinitialize: *const Deinitialize,
-        ) void {
-          var it = self.traverse(arena, .post_order) catch return;
-          while (it.next() catch return) |n| {
-              var d = n.interface.data;
-              deinitialize(&d, gpa);
-          }
+        pub fn deinit(self: *Self, arena: mem.Allocator, gpa: mem.Allocator) void {
+            var it = self.traverse(arena, .post_order) catch return;
+            while (it.next() catch return) |n| {
+                var d = n.interface.data;
+
+                switch (@typeInfo(Data)) {
+                    .@"struct" => |_| if (hasDeinitializer(Data)) d.deinit(gpa),
+                    .pointer => |pointer_info| switch (@typeInfo(pointer_info.child)) {
+                        .@"struct" => |struct_info| if (hasDeinitializer(@Type(struct_info))) {
+                            d.deinit(gpa);
+                        },
+                        else => gpa.free(d),
+                    },
+                    else => {},
+                }
+            }
+        }
+
+        fn hasDeinitializer(Type: type) bool {
+            return @hasDecl(Type, "deinit") and @TypeOf(@field(Type, "deinit")) == Deinitialize;
         }
 
         pub const Deinitialize = fn (data: *Data, gpa: mem.Allocator) void;
@@ -265,4 +274,52 @@ test Node {
         &edge,
         &graph.edges.items[i],
     );
+}
+
+test "Node.deinit" {
+    const allocator = testing.allocator;
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
+    const aa = arena.allocator();
+
+    const Struct = struct {
+        const Self = @This();
+
+        value: []const u8,
+
+        pub fn init(gpa: mem.Allocator, value: []const u8) !Self {
+            return Self{ .value = try gpa.dupe(u8, value) };
+        }
+
+        pub fn deinit(self: *Self, gpa: mem.Allocator) void {
+            gpa.free(self.value);
+        }
+    };
+
+    const structs = [3]Struct{
+        try .init(allocator, "root"),
+        try .init(allocator, "left"),
+        try .init(allocator, "right"),
+    };
+    try testDeinit(aa, allocator, Struct, structs);
+
+    const strings = [3][]const u8{
+        try allocator.dupe(u8, "root"),
+        try allocator.dupe(u8, "left"),
+        try allocator.dupe(u8, "right"),
+    };
+    try testDeinit(aa, allocator, []const u8, strings);
+
+    const numbers = [3]u8{ 0, 1, 2 };
+    try testDeinit(aa, allocator, u8, numbers);
+}
+
+fn testDeinit(arena: mem.Allocator, gpa: mem.Allocator, Data: type, data: [3]Data) !void {
+    const N = Node(Data);
+    var root = N.init(try N.Default.fromData(arena, data[0]));
+    defer root.deinit(arena, gpa);
+    const left = try N.Default.fromData(arena, data[1]);
+    const right = try N.Default.fromData(arena, data[2]);
+    try root.interface.neighbors.append(left);
+    try root.interface.neighbors.append(right);
 }
