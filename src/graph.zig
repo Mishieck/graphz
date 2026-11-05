@@ -179,16 +179,23 @@ pub fn Node(comptime Data: type) type {
             return Graph(Data).fromVector(arena, vector);
         }
 
+        /// Frees memory allocated to the data of the connected graph containing
+        /// the node. The graph contains all the nodes that are reachable from
+        /// the node. If data is an `enum`, a `struct`, or a `union`, it should
+        /// have a method with the signature of `Deinitializer`. If it is a
+        /// pointer of any of the aforementioned types, the same applies. If it
+        /// is another pointer type, the data will be freed using `gpa.free`.
+        /// Otherwise, the data will not be freed.
         pub fn deinit(self: *Self, arena: mem.Allocator, gpa: mem.Allocator) void {
             var it = self.traverse(arena, .post_order) catch return;
             while (it.next() catch return) |n| {
                 var d = n.interface.data;
 
                 switch (@typeInfo(Data)) {
-                    .@"struct" => |_| if (hasDeinitializer(Data)) d.deinit(gpa),
+                    .@"enum", .@"struct", .@"union" => if (hasDeinitializer(Data)) d.deinit(gpa),
                     .pointer => |pointer_info| switch (@typeInfo(pointer_info.child)) {
-                        .@"struct" => |struct_info| if (hasDeinitializer(@Type(struct_info))) {
-                            d.deinit(gpa);
+                        .@"enum", .@"struct", .@"union" => |struct_info| {
+                            if (hasDeinitializer(@Type(struct_info))) d.deinit(gpa);
                         },
                         else => gpa.free(d),
                     },
