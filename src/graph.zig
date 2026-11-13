@@ -26,8 +26,7 @@ pub fn Graph(comptime Data: type) type {
 
             for (vector.items, 0..) |node, i| {
                 try nodes.append(node.data);
-                var neighbors = node.neighbors;
-                defer neighbors.deinit();
+                const neighbors = node.neighbors;
 
                 for (neighbors.items) |neighbor| {
                     try edges.append(.{ i, mem.indexOf(*N.Interface, vector.items, &.{neighbor}).? });
