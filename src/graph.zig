@@ -186,7 +186,7 @@ pub fn Node(comptime Data: type) type {
         /// is another pointer type, the data will be freed using `gpa.free`.
         /// Otherwise, the data will not be freed.
         pub fn deinit(self: *Self, gpa: mem.Allocator) void {
-            var arena = std.heap.ArenaAllocator.init(testing.allocator);
+            var arena = std.heap.ArenaAllocator.init(gpa);
             defer arena.deinit();
 
             var it = self.traverse(arena.allocator(), .post_order) catch return;
