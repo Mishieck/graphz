@@ -5,8 +5,8 @@
     .minimum_zig_version = "0.15.1",
     .dependencies = .{
         .iteratorz = .{
-            .url = "git+https://github.com/mishieck/iteratorz#4518ba23984763ee3eed24f56a9ef912b612f5b1",
-            .hash = "iteratorz-0.5.0-xrS30e51AgCq7hN_KHdEipPHtSnYjFFkhWxvnnVKLmgB",
+            .url = "git+https://github.com/mishieck/iteratorz#e840e9ee732a610174b33dd84959e44f9eb12955",
+            .hash = "iteratorz-0.5.0-xrS30TZ2AgChHqCgQ9gZ837xX9JvTECEW0GgK1M2S9yI",
         },
     },
     .paths = .{
